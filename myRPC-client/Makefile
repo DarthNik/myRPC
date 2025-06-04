@@ -21,10 +21,10 @@ deb: deb_client all
 	@rm -rf MyRPC_client_$(version)-$(revision)_$(architecture)  
 
 deb_client:
-	mkdir -p MyRPC_client_$(version)-$(revision)_$(architecture)/DEBIAN  
-	printf "Package: myrpc-client\nVersion: $(version)\nArchitecture: $(architecture)\nDepends: libmysyslog\nMaintainer: DarthNik\nDescription: Client for remote command execution via myRPC\n" \
+	mkdir MyRPC_client_$(version)-$(revision)_$(architecture)/DEBIAN  
+	printf "Package: myRPC-client\nVersion: $(version)\nArchitecture: $(architecture)\nDepends: libmysyslog\nMaintainer: DarthNik\nDescription: Client for remote command execution via myRPC\n" \
 		> MyRPC_client_$(version)-$(revision)_$(architecture)/DEBIAN/control
-	mkdir -p MyRPC_client_$(version)-$(revision)_$(architecture)/usr/local/bin  
+	mkdir MyRPC_client_$(version)-$(revision)_$(architecture)/usr/local/bin  
 	cp $(BIN) MyRPC_client_$(version)-$(revision)_$(architecture)/usr/local/bin  
 	dpkg-deb --root-owner-group --build MyRPC_client_$(version)-$(revision)_$(architecture)  
 

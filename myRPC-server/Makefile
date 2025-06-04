@@ -17,8 +17,6 @@ version     := 1.0
 revision    := 0
 architecture := all
 
-.PHONY: all clean deb systemd_install
-
 all: $(BIN)
 
 # Compile server
@@ -36,14 +34,14 @@ deb: deb_server all
 
 deb_server:
 	mkdir -p MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN
-	printf "Package: myrpc-server\nVersion: $(version)\nArchitecture: $(architecture)\nDepends: libmysyslog\nMaintainer: DarthNik\nDescription: Server for remote command execution via myRPC\n" \
+	printf "Package: myRPC-server\nVersion: $(version)\nArchitecture: $(architecture)\nDepends: libmysyslog\nMaintainer: DarthNik\nDescription: Server for remote command execution via myRPC\n" \
 		> MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN/control
 
 	mkdir -p MyRPC_server_$(version)-$(revision)_$(architecture)/usr/local/bin
 	cp $(BIN) MyRPC_server_$(version)-$(revision)_$(architecture)/usr/local/bin
 
 	mkdir -p MyRPC_server_$(version)-$(revision)_$(architecture)/lib/systemd/system
-	cp ../systemd/myrpc-server.service MyRPC_server_$(version)-$(revision)_$(architecture)/lib/systemd/system
+	cp ../systemd/myRPC-server.service MyRPC_server_$(version)-$(revision)_$(architecture)/lib/systemd/system
 
 	printf "#!/bin/sh\nsystemctl daemon-reload\n" \
 		> MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN/postinst
@@ -54,7 +52,7 @@ deb_server:
 # Copy unit and reload systemd
 
 systemd_install:
-	sudo cp ../systemd/myrpc-server.service /etc/systemd/system/
+	sudo cp ../systemd/myRPC-server.service /etc/systemd/system/
 	sudo systemctl daemon-reload
 
 # Cleanup
