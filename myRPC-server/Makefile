@@ -20,54 +20,44 @@ architecture := all
 .PHONY: all clean deb systemd_install
 
 all: $(BIN)
-# $(LIBDIR)/libmysyslog.a $(BIN)
-
-#$(LIBDIR)/libmysyslog.a:
-#  $(MAKE) -C $(LIBDIR)
 
 # Compile server
 $(OBJ): $(SRC)
-  $(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Link server
 $(BIN): $(OBJ)
-  $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-###############################################################################
 # deb
-###############################################################################
 
 deb: deb_server all
-  @rm -rf MyRPC_server_$(version)-$(revision)_$(architecture)
+	@rm -rf MyRPC_server_$(version)-$(revision)_$(architecture)
 
 deb_server:
-  mkdir -p MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN
-  printf "Package: myrpc-server\nVersion: $(version)\nArchitecture: $(architecture)\nDepends: libmysyslog\nMaintainer: gandc <admin@gandc.ru>\nDescription: Server for remote command execution via myRPC\n" \
-    > MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN/control
+	mkdir -p MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN
+	printf "Package: myrpc-server\nVersion: $(version)\nArchitecture: $(architecture)\nDepends: libmysyslog\nMaintainer: DarthNik\nDescription: Server for remote command execution via myRPC\n" \
+		> MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN/control
 
-  mkdir -p MyRPC_server_$(version)-$(revision)_$(architecture)/usr/local/bin
-  cp $(BIN) MyRPC_server_$(version)-$(revision)_$(architecture)/usr/local/bin
+	mkdir -p MyRPC_server_$(version)-$(revision)_$(architecture)/usr/local/bin
+	cp $(BIN) MyRPC_server_$(version)-$(revision)_$(architecture)/usr/local/bin
 
-  mkdir -p MyRPC_server_$(version)-$(revision)_$(architecture)/lib/systemd/system
-  cp ../systemd/myrpc-server.service MyRPC_server_$(version)-$(revision)_$(architecture)/lib/systemd/system
+	mkdir -p MyRPC_server_$(version)-$(revision)_$(architecture)/lib/systemd/system
+	cp ../systemd/myrpc-server.service MyRPC_server_$(version)-$(revision)_$(architecture)/lib/systemd/system
 
-  printf "#!/bin/sh\nsystemctl daemon-reload\n" \
-    > MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN/postinst
-  chmod 755 MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN/postinst
+	printf "#!/bin/sh\nsystemctl daemon-reload\n" \
+		> MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN/postinst
+	chmod 755 MyRPC_server_$(version)-$(revision)_$(architecture)/DEBIAN/postinst
 
-  dpkg-deb --root-owner-group --build MyRPC_server_$(version)-$(revision)_$(architecture)
+	dpkg-deb --root-owner-group --build MyRPC_server_$(version)-$(revision)_$(architecture)
 
-###############################################################################
 # Copy unit and reload systemd
-###############################################################################
 
 systemd_install:
-  sudo cp ../systemd/myrpc-server.service /etc/systemd/system/
-  sudo systemctl daemon-reload
+	sudo cp ../systemd/myrpc-server.service /etc/systemd/system/
+	sudo systemctl daemon-reload
 
-###############################################################################
 # Cleanup
-###############################################################################
 
 clean:
-  rm -f $(OBJ) $(BIN)
+	rm -f $(OBJ) $(BIN)

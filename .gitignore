@@ -1,0 +1,6 @@
+./myRPC-server/*.o
+./myRPC-server/myRPC-server
+./myRPC-client/*.o
+./myRPC-client/myRPC-client
+./libmysyslog/*.a
+./libmysyslog/*.so
