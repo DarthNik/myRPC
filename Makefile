@@ -23,7 +23,7 @@ repo: deb
 	cp *.deb /usr/local/repos
 	cd /usr/local/repos && dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
 	echo "deb [trusted=yes] file:/usr/local/repos ./" | sudo tee /etc/apt/sources.list.d/myRPC.list
-	sudo apt install update
+	sudo apt-get update
 
 systemd_install:
 	sudo cp systemd/myRPC-server.service /etc/systemd/system/
