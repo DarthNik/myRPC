@@ -82,6 +82,7 @@ int main(int argc, char *argv[]){
     struct in_addr serv;
     serv.s_addr = inet_addr(host);
     serv_addr.sin_addr = serv;
+    socklen_t len = sizeof(serv_addr);
 
     //подключение к серверу
     mysyslog("Подключение с серверу...", 1, 0, 0, LOG_PATH);
@@ -103,7 +104,7 @@ int main(int argc, char *argv[]){
         //получения ответа от сервера
         int n;
         char buf[2048] = {0};
-        if ((n = recvfrom(sock, buf, sizeof(buf) - 1, 0, NULL, NULL)) <= 0){
+        if ((n = recvfrom(sock, buf, sizeof(buf) - 1, 0, (struct sockaddr*)&serv_addr, &len)) <= 0){
 	    printf("Соединение разорвано\n");
 	    exit(1);
         }
