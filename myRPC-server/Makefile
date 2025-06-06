@@ -1,4 +1,5 @@
 CC := gcc
+
 PKG_CONFIG := pkg-config
 
 CONFIG_CFLAGS  := $(shell $(PKG_CONFIG) --cflags libconfig)

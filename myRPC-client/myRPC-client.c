@@ -5,8 +5,11 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include "libmysyslog.h"
 
+#define LOG_PATH "/var/log/myRPC.log"
 
+//функция вывода помощи
 void usage(const char *name){
     printf("Использование: %s -s|--stream или -d|--dgram -h|--host <ip_addr> -p|--port <port> -c|--command \"bash команда\"\n", name);
     exit(0);
@@ -19,7 +22,7 @@ int main(int argc, char *argv[]){
     char command[1024] = {0};
     int opt;
 
-    //Обработка аргументов
+    //Обработка длинных аргументов
     struct option long_option[] = {
 	{"stream", no_argument, NULL, 's'},
 	{"dgram", no_argument, NULL, 'd'},
@@ -30,6 +33,7 @@ int main(int argc, char *argv[]){
 	{0, 0, 0, 0}
     };
   
+    //обработка аргументов
     for (int i = 0; i < argc; i++){
 	while ((opt = getopt_long(argc, argv, "sdh:p:c:", long_option, NULL)) != -1){
             switch (opt){
@@ -38,17 +42,19 @@ int main(int argc, char *argv[]){
                 case 'h': strcpy(host, optarg); break;
                 case 'p': port = atoi(optarg); break;
                 case 'c': strcpy(command, optarg); break;
-		case 0: usage(argv[0]); break;
+		case 0: usage(argv[0]); return 0;
                 default:
-                    fprintf(stderr, "Unknown option. Use -h for help\n");
+                    usage(argv[0]);
                     exit(1);
             }
 	}
     }
 
+    //получение имени пользователя
     char *user = getlogin();
     if (user == NULL){
-	perror("Ошибка");
+        mysyslog("Ошибка получения имени пользователя", 3, 0, 0, LOG_PATH);
+	perror("Ошибка получения имени пользователя");
 	exit(1);
     }
 
@@ -64,10 +70,12 @@ int main(int argc, char *argv[]){
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (sock < 0){
-	perror("Ошибка");
+        mysyslog("Ошибка создания сокета", 3, 0, 0, LOG_PATH);
+	perror("Ошибка создания сокета");
 	exit(1);
     }
 
+    //настройка сокета
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
@@ -75,25 +83,33 @@ int main(int argc, char *argv[]){
     serv.s_addr = inet_addr(host);
     serv_addr.sin_addr = serv;
 
-    if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
-	perror("Ошибка подключения к серверу");
-	close(sock);
-	exit(1);
+    //подключение к серверу
+    mysyslog("Подключение с серверу...", 1, 0, 0, LOG_PATH);
+    if (stream){
+        if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
+            mysyslog("Ошибка подключения к серверу", 3, 0, 0, LOG_PATH);
+	    perror("Ошибка подключения к серверу");
+	    close(sock);
+	    exit(1);
+        }
     }
 
-
+    //отправка сообщения серверу
     if (send(sock, request, strlen(request), 0) < 0){
-	perror("Ошибка передачи данных");
+        mysyslog("Ошибка передачи данных серверу", 3, 0, 0, LOG_PATH);
+	perror("Ошибка передачи данных серверу");
 	exit(1);
     }
 
+    //получения ответа от сервера
     int n;
-    char buf[2048];
+    char buf[2048] = {0};
     if ((n = recv(sock, buf, sizeof(buf) - 1, 0)) <= 0){
 	printf("Соединение разорвано\n");
 	exit(1);
     }
 
+    mysyslog("Получено сообщение от сервера", 1, 0, 0, LOG_PATH);
     printf("%s\n", buf);
     close(sock);
     return 0;

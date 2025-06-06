@@ -3,17 +3,20 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <libconfig.h>
-#include "../libmysyslog/libmysyslog.h"
+#include "libmysyslog.h"
 #include <sys/socket.h>
 #include <string.h>
 
+#define LOG_PATH "/var/log/myRPC.log"
+
+//Проверка, допущен ли пользователь
 int is_allowed_user(const char *name){
     FILE *file = fopen("/etc/myRPC/users.conf", "r");
     if (file == 0){
-	mysyslog("Ошибка открытия файла разрешённых пользователей", 1, 0, 0, "");
+	mysyslog("Ошибка открытия файла разрешённых пользователей", 3, 0, 0, LOG_PATH);
 	return 0;
     }
-    
+    //сравнение имён из файла с переданным в функцию
     int allow = 0;
     char buffer[128];
     while (fgets(buffer, sizeof(buffer), file) != NULL){
@@ -28,15 +31,17 @@ int is_allowed_user(const char *name){
     return allow;
 }
 
+
+//Функция выполнения команды пользователя и перенаправления вывода
 void execution(const char *command, int fdo, int fde){
     if (dup2(fdo, 1) == -1)
-        mysyslog("Ошибка перенаправления вывода", 1, 0, 0, "");
+        mysyslog("Ошибка перенаправления вывода", 3, 0, 0, LOG_PATH);
         
     if (dup2(fde, 2) == -1)
-        mysyslog("Ошибка перенаправления вывода ошибок", 1, 0, 0, "");
+        mysyslog("Ошибка перенаправления вывода ошибок", 3, 0, 0, LOG_PATH);
 
     if (system(command) < 0)
-        mysyslog("Ошибка выполнения команды", 1, 0, 0, "");
+        mysyslog("Ошибка выполнения команды", 3, 0, 0, LOG_PATH);
 
 }
 
@@ -45,25 +50,26 @@ int main(){
     config_t conf;
     config_init(&conf);
     if (config_read_file(&conf, "/etc/myRPC/myRPC.conf") == 0){
-	mysyslog("Ошибка чтения конфигурационного файла%d", 1, 0, 0, "");
+	mysyslog("Ошибка чтения конфигурационного файла", 3, 0, 0, LOG_PATH);
 	config_destroy(&conf);
 	exit(1);
     }
-
+    //считывание порта из файла
     int port; 
     if (config_lookup_int(&conf, "port", &port) == 0){
-	mysyslog("Ошибка получения порта", 1, 0, 0, "");
+	mysyslog("Ошибка получения порта", 3, 0, 0, LOG_PATH);
 	exit(1);
     }
-
+    //считывание типа сокета
     int socket_type;
     if (config_lookup_int(&conf, "socket_type", &socket_type) == 0){
-	mysyslog("Ошибка получения типа сокета", 1, 0, 0, "");
+	mysyslog("Ошибка получения типа сокета", 3, 0, 0, LOG_PATH);
         exit(1);
     }
 
     config_destroy(&conf);
 
+    mysyslog("Сервер запущен", 1, 0, 0, LOG_PATH);
     //Создание сокета
     int sock;
     if (socket_type == 1)
@@ -72,7 +78,7 @@ int main(){
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (sock < 0)
-	mysyslog("Ошибка создания сокета", 1, 0, 0, "");
+	mysyslog("Ошибка создания сокета", 3, 0, 0, LOG_PATH);
 
     //Настройка механизма сокетов
     struct sockaddr_in serv_addr, client_addr;
@@ -81,31 +87,41 @@ int main(){
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     socklen_t addr_len = sizeof(client_addr); 
     
+    //привязка сокета
     if (bind(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
-	mysyslog("Ошибка привязки сокета", 1, 0, 0, "");
+	mysyslog("Ошибка привязки сокета", 3, 0, 0, LOG_PATH);
 	close(sock);
 	exit(1);
     }
 
+    //прослушивание соединений
     if (listen(sock, 5) < 0 && socket_type){
-	mysyslog("Ошибка прослушивания сокета", 1, 0, 0, "");
+	mysyslog("Ошибка прослушивания сокета", 3, 0, 0, LOG_PATH);
 	exit(1);
     }
 
-    int sd;
+    int sd = 0;
     while (1){
-	if ((sd = accept(sock, (struct sockaddr*)&client_addr, &addr_len)) < 0){
-	    mysyslog("Ошибка принятия соединения", 1, 0, 0, "");
-	    continue;
+        //принятие соединения
+        if (socket_type){
+	    if ((sd = accept(sock, (struct sockaddr*)&client_addr, &addr_len)) < 0){
+	        mysyslog("Ошибка принятия соединения", 3, 0, 0, LOG_PATH);
+	        continue;
+	    }
 	}
-        
+	
+	mysyslog("Пользователь подключился", 1, 0, 0, LOG_PATH);
+	
+        //получение сообщения от пользователя
 	int recv_bytes;
 	char buf[1024];
 	if ((recv_bytes = recv(sd, buf, sizeof(buf) - 1, 0)) <= 0){
-	    mysyslog("Ошибка получения данных", 1, 0, 0, "");
+	    mysyslog("Ошибка получения данных от пользователя", 3, 0, 0, LOG_PATH);
 	    close(sd);
 	}
-
+        
+        mysyslog("Получено сообщение от пользователя", 1, 0, 0, LOG_PATH);
+        
  	//Разбор полученной строки
 	char user[128] = {0};
 	char command[512] = {0};
@@ -118,39 +134,57 @@ int main(){
 	    close(sd);
 	}
 
+        //создание временных файлов
 	char out_temp[] = "/tmp/myRPC_stdout_XXXXXX";
         char err_temp[] = "/tmp/myRPC_stderr_XXXXXX";
         int fdo = mkstemp(out_temp);
         int fde = mkstemp(err_temp);
 
         if (fdo < 0 || fde < 0){
-            mysyslog("Ошибка создания временного файла", 1, 0, 0, "");
+            mysyslog("Ошибка создания временного файла", 3, 0, 0, LOG_PATH);
             break;
         }
 
+        //выполнение полученной команды
 	execution(command, fdo, fde);
 
+        //считывание временных файлов
 	char result[1024];
 	lseek(fdo, 0, SEEK_SET);
 	lseek(fde, 0, SEEK_SET);
-	read(fdo, result, sizeof(result));
+	if (read(fdo, result, sizeof(result)) < 0){
+	    mysyslog("Ошибка чтения файла вывода", 3, 0, 0, LOG_PATH);
+	}
+	
 	close(fdo);
 	char errors[1024] = {0};
-	read(fde, errors, sizeof(errors));
+	if (read(fde, errors, sizeof(errors)) < 0 ){
+	    mysyslog("Ошибка чтения файла вывода", 3, 0, 0, LOG_PATH);
+	}
+	
 	close(fde);
 	errors[strlen(errors) - 1] = 0;
 	result[strlen(result) - 1] = 0;
+	
+	//создание ответа для пользователя
 	char response[2048];
+	mysyslog("Отправка ответа пользователю", 1, 0, 0, LOG_PATH);
 	if (strlen(errors) > 0){
+	    //ответ в случае ошибки
 	    snprintf(response, sizeof(response), "1: \"%s\"", errors);
 	    send(sd, response, strlen(response), 0);
 	    close(sd);
+	    unlink(out_temp);
+	    unlink(err_temp);
 	}
 	
+	//ответ в случае успеха
 	snprintf(response, sizeof(response), "0: \"%s\"", result);
 	send(sd, response, strlen(response), 0);
 	memset(result, 0, sizeof(result));
 	close(sd);
+	unlink(out_temp);
+	unlink(err_temp);
     }
 
     close(sock);
