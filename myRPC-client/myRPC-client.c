@@ -93,22 +93,21 @@ int main(int argc, char *argv[]){
 	    exit(1);
         }
     }
+        //отправка сообщения серверу
+        if (sendto(sock, request, strlen(request), 0, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
+            mysyslog("Ошибка передачи данных серверу", 3, 0, 0, LOG_PATH);
+	    perror("Ошибка передачи данных серверу");
+	    exit(1);
+        }
 
-    //отправка сообщения серверу
-    if (send(sock, request, strlen(request), 0) < 0){
-        mysyslog("Ошибка передачи данных серверу", 3, 0, 0, LOG_PATH);
-	perror("Ошибка передачи данных серверу");
-	exit(1);
-    }
-
-    //получения ответа от сервера
-    int n;
-    char buf[2048] = {0};
-    if ((n = recv(sock, buf, sizeof(buf) - 1, 0)) <= 0){
-	printf("Соединение разорвано\n");
-	exit(1);
-    }
-
+        //получения ответа от сервера
+        int n;
+        char buf[2048] = {0};
+        if ((n = recvfrom(sock, buf, sizeof(buf) - 1, 0, NULL, NULL)) <= 0){
+	    printf("Соединение разорвано\n");
+	    exit(1);
+        }
+    
     mysyslog("Получено сообщение от сервера", 1, 0, 0, LOG_PATH);
     printf("%s\n", buf);
     close(sock);

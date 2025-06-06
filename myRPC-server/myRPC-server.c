@@ -115,7 +115,7 @@ int main(){
         //получение сообщения от пользователя
 	int recv_bytes;
 	char buf[1024];
-	if ((recv_bytes = recv(sd, buf, sizeof(buf) - 1, 0)) <= 0){
+	if ((recv_bytes = recvfrom(sd, buf, sizeof(buf) - 1, 0, (struct sockaddr*)&client_addr, &addr_len)) <= 0){
 	    mysyslog("Ошибка получения данных от пользователя", 3, 0, 0, LOG_PATH);
 	    close(sd);
 	}
@@ -130,7 +130,7 @@ int main(){
 	//Проверка допущен ли пользователь
 	if (!is_allowed_user(user)){
 	    const char *allow_response = {"1: \"Пользователь не допущен\""};
-	    send(sd, allow_response, strlen(allow_response), 0);
+	    sendto(sd, allow_response, strlen(allow_response), 0, (struct sockaddr*)&client_addr, sizeof(client_addr));
 	    close(sd);
 	}
 
@@ -172,7 +172,7 @@ int main(){
 	if (strlen(errors) > 0){
 	    //ответ в случае ошибки
 	    snprintf(response, sizeof(response), "1: \"%s\"", errors);
-	    send(sd, response, strlen(response), 0);
+	    sendto(sd, response, strlen(response), 0, (struct sockaddr*)&client_addr, sizeof(client_addr));
 	    close(sd);
 	    unlink(out_temp);
 	    unlink(err_temp);
@@ -180,7 +180,7 @@ int main(){
 	
 	//ответ в случае успеха
 	snprintf(response, sizeof(response), "0: \"%s\"", result);
-	send(sd, response, strlen(response), 0);
+	sendto(sd, response, strlen(response), 0, (struct sockaddr*)&client_addr, sizeof(client_addr));
 	memset(result, 0, sizeof(result));
 	close(sd);
 	unlink(out_temp);
